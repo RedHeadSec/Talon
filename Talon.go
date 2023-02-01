@@ -325,7 +325,11 @@ func main() {
 					time.Sleep(time.Duration(sleep) * time.Second)
 					auth := setup(services[x], hosts[n], domain, username, pwd, opt.enum)
 					result, forfile, _ := auth.Login()
-					fmt.Println(result)
+					if strings.Contains(result, "Pass") {
+                                                // Do nothing
+                                        } else {
+                                                fmt.Println(result)
+                                        }
 					if strings.Contains(result, "User's Account Locked") && opt.enum != true {
 						err++
 						usernames[i] = usernames[len(usernames)-1]
