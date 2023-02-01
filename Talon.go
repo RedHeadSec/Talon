@@ -23,6 +23,7 @@ import (
 var (
 	debugging   bool
 	debugWriter io.Writer
+	silent 	    bool
 )
 
 type Authenticator interface {
@@ -64,6 +65,7 @@ type FlagOptions struct {
 	kerb     bool
 	ldap     bool
 	lockerr  float64
+	silent	 bool
 }
 
 func printDebug(format string, v ...interface{}) {
@@ -91,10 +93,11 @@ func options() *FlagOptions {
 	kerb := flag.Bool("K", false, "Test against Kerberos only")
 	ldap := flag.Bool("L", false, "Test against LDAP only")
 	lockerr := flag.Float64("LockErr", 1, "Repetative lockout errors")
+	silent := flag.Bool("S",false,"Do not print failed logins")
 	flag.Parse()
 	debugging = *debug
 	debugWriter = os.Stdout
-	return &FlagOptions{host: *host, domain: *domain, user: *user, userfile: *userfile, hostfile: *hostfile, pass: *pass, outFile: *outFile, sleep: *sleep, enum: *enum, ldap: *ldap, kerb: *kerb, passfile: *passfile, lockout: *lockout, attempts: *attempts, lockerr: *lockerr}
+	return &FlagOptions{host: *host, domain: *domain, user: *user, userfile: *userfile, hostfile: *hostfile, pass: *pass, outFile: *outFile, sleep: *sleep, enum: *enum, ldap: *ldap, kerb: *kerb, passfile: *passfile, lockout: *lockout, attempts: *attempts, lockerr: *lockerr, silent: *silent}
 }
 
 func readfile(inputFile string) []string {
@@ -150,6 +153,10 @@ func main() {
 
 	if opt.ldap {
 		services = []string{"LDAP"}
+	}
+
+	if opt.silent {
+		silent = true
 	}
 
 	if opt.kerb && opt.ldap {
@@ -254,7 +261,11 @@ func main() {
 			time.Sleep(time.Duration(sleep) * time.Second)
 			auth := setup(services[x], hosts[n], domain, username, password, opt.enum)
 			result, forfile, _ := auth.Login()
-			fmt.Println(result)
+			if strings.Contains(result, "Pass") {
+				// Do nothing
+			} else {
+				fmt.Println(result)
+			}
 			if strings.Contains(result, "User's Account Locked") && opt.enum != true {
 				err++
 				if err == int(opt.lockerr) {
@@ -395,6 +406,9 @@ func (l LDAP) Login() (string, string, error) {
 			forfile := fmt.Sprintf("%s %s %s\\%s:%s = %s", ("[-] "), l.Host, l.User.Domain, l.User.Name, l.User.Password, ("User's Account Locked"))
 			return result, forfile, err
 		} else {
+			if silent != false {
+				return "Pass","",err
+			}
 			result := fmt.Sprintf("%s %s %s\\%s:%s = %s", color.RedString("[-] "), l.Host, l.User.Domain, l.User.Name, l.User.Password, color.RedString("Failed"))
 			forfile := fmt.Sprintf("%s %s %s\\%s:%s = %s", ("[-] "), l.Host, l.User.Domain, l.User.Name, l.User.Password, ("Failed"))
 			return result, forfile, err
@@ -476,6 +490,9 @@ func (k KERB) Login() (string, string, error) {
 			forfile := fmt.Sprintf("%s %s %s\\%s:%s = %s", ("[-] "), k.Host, k.User.Domain, k.User.Name, k.User.Password, ("User's Account Locked"))
 			return result, forfile, err
 		} else {
+			if silent != false {
+				return "Pass","", err
+			}
 			result := fmt.Sprintf("%s %s %s\\%s:%s = %s", color.RedString("[-] "), k.Host, k.User.Domain, k.User.Name, k.User.Password, color.RedString("Failed"))
 			forfile := fmt.Sprintf("%s %s %s\\%s:%s = %s", ("[-] "), k.Host, k.User.Domain, k.User.Name, k.User.Password, ("Failed"))
 			return result, forfile, err
