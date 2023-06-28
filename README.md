@@ -59,6 +59,7 @@ Usage of ./Talon:
     	File containing the list of passwords
   -U string
     	Username to authenticate as
+  -S    Do not print Failed Logins
   -Userfile string
     	File containing the list of usernames
   -debug
